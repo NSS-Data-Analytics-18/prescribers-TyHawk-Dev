@@ -38,18 +38,30 @@ ORDER BY total_opiod_claims_per_specialty DESC;
 
 --Question 2b: Nurse Practitioner (900845)
 
-SELECT *
-	-- specialty_description
-	-- , drug_name
+SELECT 
+	specialty_description,
+	SUM(total_claim_count) AS total_claim_count
 FROM prescriber
-	RIGHT JOIN prescription ON prescriber.npi = prescription.npi;
---WHERE total_claim_count = '0'
--- GROUP BY 
-	-- specialty_description
-	-- , drug_name
+	LEFT JOIN prescription ON prescriber.npi = prescription.npi
+GROUP BY 
+	specialty_description
+ORDER BY total_claim_count DESC;
 
---Question 2c: TBD
---Question 2d: TBD
+--Question 2c: 15 specialty_descriptions with no claims
+
+SELECT
+	specialty_description,
+	SUM(total_claim_count) AS total_claim_count,
+	SUM(CASE WHEN opioid_drug_flag = 'Y' THEN total_claim_count ELSE 0 END) AS opioid_claim_count,
+	ROUND(SUM(CASE WHEN opioid_drug_flag = 'Y' THEN total_claim_count ELSE 0 END) / SUM(total_claim_count) * 100, 2) AS opioid_percentage_of_claims
+FROM prescriber
+	INNER JOIN prescription USING (npi)
+	INNER JOIN drug USING (drug_name)
+GROUP BY 
+	specialty_description
+ORDER BY opioid_percentage_of_claims DESC;
+
+--Question 2d: Sheeeeeesh. It was unintuitive to wrap the division aspect in SUM once again to make it work. That said, I learned that this is because using an ALIAS that you already established earlier in the SELECT statement doesn't work. You essentially have to re-write the calculation within your division computation.
 
 SELECT
 	generic_name
@@ -98,6 +110,7 @@ SELECT
 FROM drug;
 
 --Question 4a: Query above
+--Later in the assignment, I realized that including the long_acting_opioid_drug_flag was unncessary because anything flagged as such was always a 'Y' in the opioid_drug_flag column as well.
 
 SELECT 
 	CASE
@@ -205,14 +218,116 @@ WHERE total_claim_count >= 3000;
 
 --Question 6c: Query above. This time including duplicate drugs because now we care about who the prescriber is for each drug, rather than drugs in general.
 
+SELECT 
+	prescriber.npi,
+	drug.drug_name
+FROM prescriber
+	CROSS JOIN drug
+WHERE specialty_description = 'Pain Management'
+	AND nppes_provider_city = 'NASHVILLE'
+	AND opioid_drug_flag = 'Y';
+
+--Question 7a: Query above showing all NPIs & Drug Name combinations
+
+SELECT 
+	prescriber.npi,
+	drug.drug_name,
+	total_claim_count
+FROM prescriber
+	CROSS JOIN drug
+	LEFT JOIN prescription USING (drug_name, npi)
+WHERE specialty_description = 'Pain Management'
+	AND nppes_provider_city = 'NASHVILLE'
+	AND opioid_drug_flag = 'Y'
+ORDER BY total_claim_count DESC;
+
+--Question 7b: Query above.
+
+SELECT 
+	prescriber.npi,
+	drug.drug_name,
+	COALESCE(total_claim_count, 0) AS total_claim_count
+FROM prescriber
+	CROSS JOIN drug
+	LEFT JOIN prescription USING (drug_name, npi)
+WHERE specialty_description = 'Pain Management'
+	AND nppes_provider_city = 'NASHVILLE'
+	AND opioid_drug_flag = 'Y'
+ORDER BY total_claim_count DESC;
+
+--Question 7c: Query above. I initially ordered by total_claim_count w/ 0's first to show that COALESCE was applied and [nulls] were replaced by 0's. Then, I realized I could also order by DESC to show the same thing, because if [nulls] were present, they would have come first. DESC is a more useful visualization.
 
 
---Question 7a:
+SELECT
+	specialty_description,
+	SUM(total_claim_count) AS total_claim_count,
+	SUM(CASE WHEN opioid_drug_flag = 'Y' THEN total_claim_count ELSE 0 END) AS opioid_claim_count,
+	ROUND(SUM(CASE WHEN opioid_drug_flag = 'Y' THEN total_claim_count ELSE 0 END) / SUM(total_claim_count) * 100, 2) AS opioid_percentage_of_claims
+FROM prescriber
+	INNER JOIN prescription USING (npi)
+	INNER JOIN drug USING (drug_name)
+GROUP BY 
+	specialty_description
+ORDER BY opioid_percentage_of_claims DESC;
+
+--This is going to give me each specialties total_claim_count for opioids.
+
+-- SELECT
+-- 	specialty_description,
+-- 	SUM(total_claim_count) AS total_claim_count
+-- FROM prescriber
+-- 	INNER JOIN prescription USING (npi)
+-- 	INNER JOIN drug USING (drug_name)
+-- GROUP BY specialty_description;
+
+--This is going to give me each specialties total_claim_count for all prescriptions
 
 
 
---Question 7b:
 
 
 
---Question 7c:
+--The queries below were wrong, so I'm putting them down here
+
+
+--Question 7a: Reading comprehension issue
+
+-- SELECT
+-- 	npi,
+-- 	drug_name,
+-- 	CASE
+-- 		WHEN opioid_drug_flag = 'Y' THEN 'Y'
+-- 		WHEN long_acting_opioid_drug_flag = 'Y' THEN 'Y'
+-- 		ELSE 'N'
+-- 	END opioid
+-- FROM prescriber
+-- 	INNER JOIN prescription USING (npi)
+-- 	INNER JOIN drug USING (drug_name)
+-- WHERE specialty_description = 'Pain Management'
+-- 	AND nppes_provider_city = 'NASHVILLE'
+-- 	AND (opioid_drug_flag = 'Y' OR long_acting_opioid_drug_flag = 'Y');
+
+
+--Question 7b: Reading comprehension issue
+
+-- SELECT
+-- 	npi,
+-- 	drug_name,
+-- 	total_claim_count
+-- FROM prescriber
+-- 	FULL JOIN prescription USING (npi)
+-- 	FULL JOIN drug USING (drug_name)
+-- WHERE specialty_description = 'Pain Management'
+-- 	AND nppes_provider_city = 'NASHVILLE'
+-- 	AND (opioid_drug_flag = 'Y' OR long_acting_opioid_drug_flag = 'Y');
+
+
+--Question 7c: Didn't get very far when I realized I did the entire thing wrong.
+
+-- SELECT *
+-- FROM prescriber
+-- 	FULL JOIN prescription USING (npi)
+-- 	FULL JOIN drug USING (drug_name)
+-- WHERE specialty_description = 'Pain Management'
+-- 	AND nppes_provider_city = 'NASHVILLE'
+-- 	AND opioid_drug_flag = 'Y';
